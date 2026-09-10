@@ -103,7 +103,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          if git diff --quiet -- Casks/statusarc.rb; then
+          if [[ -z "$(git status --porcelain -- Casks/statusarc.rb)" ]]; then
             echo "Cask is already current."
             exit 0
           fi

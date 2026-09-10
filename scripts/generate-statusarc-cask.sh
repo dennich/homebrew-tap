@@ -37,7 +37,6 @@ cask "statusarc" do
   desc "Compact menu bar status for battery, network, and input source"
   homepage "https://github.com/${OWNER}/${REPOSITORY}"
 
-  auto_updates true
   depends_on macos: :ventura
 
   app "StatusArc.app"

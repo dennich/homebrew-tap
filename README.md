@@ -42,8 +42,9 @@ v1.0.0
 ## Maintainer notes
 
 The generated cask installs `StatusArc.app` into the normal Homebrew cask app
-directory. Starting with the Sparkle-enabled StatusArc release, generated casks
-also declare `auto_updates true` because the app can update itself in place.
+directory. Sparkle can update the app from its menu, while the cask remains a
+normal versioned cask so `brew upgrade` continues to work as a second update
+channel.
 
 Do not replace the SHA-256 with `:no_check`; keeping immutable versioned
 artifacts and checksums makes upgrades reproducible.

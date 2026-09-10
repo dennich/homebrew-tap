@@ -1,6 +1,6 @@
 cask "statusarc" do
-  version "1.0.1"
-  sha256 "db17a472bb1c93f0870ae5fbe5866f7555a6975294cc67963d0663f6187c1d09"
+  version "1.1.0"
+  sha256 "a30626208ab207dd30a1205ffb49090f450cac782af548f2fd41ea698b3dd1e8"
 
   url "https://github.com/dennich/StatusArc/releases/download/v#{version}/StatusArc-#{version}.zip"
   name "StatusArc"

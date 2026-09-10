@@ -1,0 +1,116 @@
+name: Update StatusArc Cask
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out tap
+        uses: actions/checkout@v4
+
+      - name: Resolve latest StatusArc release
+        id: release
+        shell: bash
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          UPSTREAM_REPOSITORY="StatusArc"
+          API_URL="https://api.github.com/repos/${OWNER}/${UPSTREAM_REPOSITORY}/releases/latest"
+
+          RELEASE_JSON="$(
+            curl \
+              --fail \
+              --silent \
+              --show-error \
+              --location \
+              -H "Accept: application/vnd.github+json" \
+              "$API_URL"
+          )"
+
+          TAG="$(
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' \
+              <<< "$RELEASE_JSON"
+          )"
+
+          VERSION="${TAG#v}"
+
+          if [[ "$TAG" == "$VERSION" ]]; then
+            echo "Expected the latest release tag to start with v, got: $TAG"
+            exit 1
+          fi
+
+          ASSET_NAME="StatusArc-${VERSION}.zip"
+          ASSET_URL="$(
+            python3 -c 'import json,sys; name=sys.argv[1]; release=json.load(sys.stdin); print(next(asset["browser_download_url"] for asset in release.get("assets", []) if asset.get("name") == name))'               "$ASSET_NAME" <<< "$RELEASE_JSON"
+          )"
+
+          echo "owner=${OWNER}" >> "$GITHUB_OUTPUT"
+          echo "repository=${UPSTREAM_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "asset_name=${ASSET_NAME}" >> "$GITHUB_OUTPUT"
+          echo "asset_url=${ASSET_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Download release and calculate SHA-256
+        id: checksum
+        shell: bash
+        env:
+          ASSET_URL: ${{ steps.release.outputs.asset_url }}
+          ASSET_NAME: ${{ steps.release.outputs.asset_name }}
+        run: |
+          set -euo pipefail
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --location \
+            "$ASSET_URL" \
+            --output "$RUNNER_TEMP/$ASSET_NAME"
+
+          SHA256="$(sha256sum "$RUNNER_TEMP/$ASSET_NAME" | awk '{print $1}')"
+          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate cask
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ./scripts/generate-statusarc-cask.sh \
+            "${{ steps.release.outputs.owner }}" \
+            "${{ steps.release.outputs.repository }}" \
+            "${{ steps.release.outputs.version }}" \
+            "${{ steps.checksum.outputs.sha256 }}"
+
+      - name: Check Ruby syntax
+        shell: bash
+        run: ruby -c Casks/statusarc.rb
+
+      - name: Commit update
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- Casks/statusarc.rb; then
+            echo "Cask is already current."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add Casks/statusarc.rb
+          git commit -m "Update StatusArc to ${VERSION}"
+          git push

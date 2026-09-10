@@ -22,10 +22,19 @@ brew install --cask statusarc
 Release from `dennich/StatusArc`, downloads the release ZIP,
 computes its SHA-256, generates `Casks/statusarc.rb`, and commits changes.
 
-The workflow runs every 15 minutes and can also be started manually. It reads
-only the public StatusArc release and uses this tap repository’s own scoped
-GitHub Actions token to commit cask changes; no credential is shared between
-the two repositories.
+The workflow runs only when explicitly dispatched. The normal StatusArc release
+script dispatches it from the maintainer's Mac using the maintainer's existing
+GitHub CLI authentication, waits for it, and verifies the generated cask version.
+
+No cross-repository PAT, GitHub App key, shared secret, or persistent credential
+is stored in either repository for this handoff. Once the workflow starts, it
+uses this tap repository's own scoped GitHub Actions token to commit cask changes.
+
+For an already-published release, the updater can also be dispatched directly:
+
+```bash
+gh workflow run update-statusarc.yml --repo dennich/homebrew-tap --ref main
+```
 
 The upstream release asset must be named:
 
